@@ -78,11 +78,12 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
             NoiseFrac = 1  # may be set to 0 to avoid noise addition
 
             # Poisson noise generation
-            poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
+            #poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
             
             # noise added raw SIM images
-            STnoisy = ST + NoiseFrac*nST + poissonNoise 
-            frames.append(STnoisy)
+            STnoisy = ST + NoiseFrac*nST
+            #STnoisy = ST + NoiseFrac*nST + poissonNoise 
+            frames.append(ST)
 
     return frames
 
@@ -185,11 +186,12 @@ def Generate_SIM_Image(opt, Io, Oi):
     pixelSize = opt.Psize
     rindexObj = 1.518
     rindexSp = 1.2
+    offset = 0.7+0.2*np.random.rand()
     depthI = 10
     depthO = 800+200*np.random.rand() # Random depth of out of focus signal
     
-    PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0) # In focus PSF
-    PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthO,depthO) # Out of focus PSF    
+    PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset) # In focus PSF
+    PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthO,depthO,offset) # Out of focus PSF    
     
     DIo = Io.astype('float')
     DOi = Oi.astype('float')
@@ -202,17 +204,75 @@ def Generate_SIM_Image(opt, Io, Oi):
     
 
     frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
-    OTFi = np.abs(np.fft.fftshift(np.fft.fft2(PSFi)))
+        
+    if opt.target == 'GT':
+        frames.append(PSFi/np.amax(PSFi))
+        frames.append(PSFo/np.amax(PSFo))
+        frames.append(Io)
     
-    frames.append(PSFi/np.amax(PSFi))
-    frames.append(PSFo/np.amax(PSFo))
+    else:
+        OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
+        OTFi = np.abs(OTFi)
+        OTFsim = np.abs(OTFi)
+
+        #double_re = np.zeros([1024,1024],dtype=complex)
+        #Io_FT = np.fft.fftshift(np.fft.fft2(Io))
+        #double_re[256:768,256:768] = Io_FT
+        #Io = np.fft.ifft2(np.fft.ifftshift(double_re))
+
+
+
+        for a in range(opt.Nangles):
+
+            theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
+            print('angle shift = ', theta)
+
+            kx = int(512*opt.Psize*opt.k2*np.cos(theta))
+            ky = int(512*opt.Psize*opt.k2*np.sin(theta))
+
+            print('kx = ', kx)
+
+            pos_shift = np.roll(OTFi,kx,axis=0)
+            pos_shift = np.roll(pos_shift,ky,axis=1)
+
+            neg_shift = np.roll(OTFi,-kx,axis=0)
+            neg_shift = np.roll(neg_shift,-ky,axis=1)
+
+            OTFsim = OTFsim+pos_shift+neg_shift
+
+
+        filter = np.zeros(OTFsim.shape)
+        filter[OTFsim>0.0001] = 1
+        kernel = drawGauss (20,20)
+        kernel = np.pad(kernel,((246,246),(246,246)))
+        filter_f = np.fft.fft2(filter)*np.fft.fft2(kernel)
+        filter = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
+
+        frames.append(PSFi/np.amax(PSFi))
+        frames.append(filter/np.amax(filter))
+
+        Io_f =np.fft.fftshift(np.fft.fft2(Io))
+        Io_f = Io_f*filter
+        Io = np.abs((np.fft.ifft2(np.fft.fftshift(Io_f))))
+
+
+#        gt11 = np.expand_dims(gt_img[:512,:512], 0)
+#        gt21 = np.expand_dims(gt_img[512:,:512], 0)
+#        gt12 = np.expand_dims(gt_img[:512,512:], 0)
+#        gt22 = np.expand_dims(gt_img[512:,512:], 0)
+#        stack = np.concatenate((I,gt11,gt21,gt12,gt22),0)
+#        io.imsave(file,stack)
+
+        frames.append(Io)
+
+
+
     
-    frames.append(Io)
     stack = np.array(frames)
 
     return stack
 
-def calcPSF(xysize,pixelSize,NA,emission,rindexObj,rindexSp,depth,z_off):
+def calcPSF(xysize,pixelSize,NA,emission,rindexObj,rindexSp,depth,z_off,offset):
     """
     Generate the aberrated incoherent emission PSF using A.Stokseth model.
     Parameters
@@ -248,9 +308,7 @@ def calcPSF(xysize,pixelSize,NA,emission,rindexObj,rindexSp,depth,z_off):
     dkxy = 2*np.pi/(pixelSize*xysize)
 
     #Radius of pupil
-    kMax = (2*np.pi*NA)/(emission*dkxy)
-
-    N = xysize/2
+    kMax = offset*(2*np.pi*NA)/(emission*dkxy)
 
     klims = np.linspace(-xysize/2,xysize/2,xysize)
     kx, ky = np.meshgrid(klims,klims)
