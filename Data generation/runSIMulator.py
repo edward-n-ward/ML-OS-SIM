@@ -28,24 +28,23 @@ def GetParams():
     # in percentage
     opt.NoiseLevel = 18 + 8*(np.random.rand()-0.5)
     # Poisson noise extent
-    opt.Poisson = np.random.randint(10000,100000)
+    opt.Poisson = np.random.randint(10000,50000)
     # include OTF and GT in stack
     opt.OTF_and_GT = True
     # NA
     opt.NA = 1.2
     # Emission wavelength
-    opt.emission = 680
+    opt.emission = np.random.randint(500,680)
     # Pattern frequency  
     kMax = (2*opt.NA)/(opt.emission)
     opt.k2 = 0.6*(kMax)
     # Pixel Size
     # To maintain niquist these pixels have been halved. SIM images must be upsampled before reconstion
-    opt.Psize = 42
+    opt.Psize = np.random.randint(84,110)
     # Image to use for ground truth in training
-    opt.target = 'original' # 'original' or 'SIM' 
+    opt.target = 'sim' # 'original' or 'SIM' 
     
     return opt
-
 
 # ------------ Options --------------
 nrep = 3
@@ -80,12 +79,13 @@ for n_it in range(n_rep):
             Io = np.rot90(Io,2)
             Io = Io[0:minDim,0:minDim,:]
             
-        Io = transform.resize(Io, (512, 512), anti_aliasing=True)
+        Io = transform.resize(Io, (1024, 1024), anti_aliasing=True)
         
         if np.random.rand(1) > 0.65: # 35 percent  of the time use the same image for background light
 
             # Use same image
             Oi = Io[:,:,np.random.randint(1,3)]  # if not grayscale
+            Oi = transform.resize(Oi, (512, 512), anti_aliasing=True)
             Io = Io[:,:,0]
 
         else:

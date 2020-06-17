@@ -2,7 +2,7 @@ import numpy as np
 from numpy import pi, cos, sin
 from numpy.fft import fft, fft2, ifft2, fftshift, ifftshift
 
-from skimage import io
+from skimage import io, transform
 import scipy.special
 
 def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
@@ -78,12 +78,12 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
             NoiseFrac = 1  # may be set to 0 to avoid noise addition
 
             # Poisson noise generation
-            #poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
+            poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
             
             # noise added raw SIM images
-            STnoisy = ST + NoiseFrac*nST
-            #STnoisy = ST + NoiseFrac*nST + poissonNoise 
-            frames.append(ST)
+            #STnoisy = ST + NoiseFrac*nST
+            STnoisy = ST + NoiseFrac*nST + poissonNoise 
+            frames.append(STnoisy)
 
     return frames
 
@@ -182,7 +182,10 @@ def Generate_SIM_Image(opt, Io, Oi):
      
     """
     # PSF variables
-    w = Io.shape[0]
+
+    small = transform.resize(Io, (512, 512), anti_aliasing=True)
+
+    w = small.shape[0]
     pixelSize = opt.Psize
     rindexObj = 1.518
     rindexSp = 1.2
@@ -193,8 +196,7 @@ def Generate_SIM_Image(opt, Io, Oi):
     PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset) # In focus PSF
     PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthO,depthO,offset) # Out of focus PSF    
     
-    DIo = Io.astype('float')
-    DOi = Oi.astype('float')
+
     
     # To prevent aggressive background removal only add background to 60 percent of training data
     if np.random.rand() > 0.4:
@@ -202,72 +204,80 @@ def Generate_SIM_Image(opt, Io, Oi):
     else:
         background = 0
     
+    
+    if opt.target == 'original':
 
-    frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
-        
-    if opt.target == 'GT':
+        Io = transform.resize(Io, (512, 512), anti_aliasing=True)
+        DIo = Io.astype('float')
+        DOi = Oi.astype('float')
+                    
+        frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
+
         frames.append(PSFi/np.amax(PSFi))
         frames.append(PSFo/np.amax(PSFo))
         frames.append(Io)
     
     else:
+
+        
+
+        small = transform.resize(Io, (512, 512), anti_aliasing=True)
+        DIo = small.astype('float')
+        DOi = Oi.astype('float')
+                    
+        frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
+        frames.append(PSFi/np.amax(PSFi))
+
         OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
-        OTFi = np.abs(OTFi)
-        OTFsim = np.abs(OTFi)
-
-        #double_re = np.zeros([1024,1024],dtype=complex)
-        #Io_FT = np.fft.fftshift(np.fft.fft2(Io))
-        #double_re[256:768,256:768] = Io_FT
-        #Io = np.fft.ifft2(np.fft.ifftshift(double_re))
-
-
+        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256))))
+        OTFtemp = np.abs(OTFsim)
 
         for a in range(opt.Nangles):
 
             theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
             print('angle shift = ', theta)
 
-            kx = int(512*opt.Psize*opt.k2*np.cos(theta))
-            ky = int(512*opt.Psize*opt.k2*np.sin(theta))
+            ky = int(512*opt.Psize*opt.k2*np.cos(theta))
+            kx = int(512*opt.Psize*opt.k2*np.sin(theta))
 
             print('kx = ', kx)
 
-            pos_shift = np.roll(OTFi,kx,axis=0)
+            pos_shift = np.roll(OTFtemp,kx,axis=0)
             pos_shift = np.roll(pos_shift,ky,axis=1)
 
-            neg_shift = np.roll(OTFi,-kx,axis=0)
+            neg_shift = np.roll(OTFtemp,-kx,axis=0)
             neg_shift = np.roll(neg_shift,-ky,axis=1)
 
             OTFsim = OTFsim+pos_shift+neg_shift
 
-
-        filter = np.zeros(OTFsim.shape)
-        filter[OTFsim>0.0001] = 1
+        OTFsim = OTFsim/np.amax(OTFsim)
+        OTFsim[OTFsim>0.0001] = 1
         kernel = drawGauss (20,20)
-        kernel = np.pad(kernel,((246,246),(246,246)))
-        filter_f = np.fft.fft2(filter)*np.fft.fft2(kernel)
-        filter = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
-
-        frames.append(PSFi/np.amax(PSFi))
-        frames.append(filter/np.amax(filter))
+        kernel = np.pad(kernel,((502,502),(502,502)))
+        filter_f = np.fft.fft2(OTFsim)*np.fft.fft2(kernel)
+        OTFsim = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
+        OTFsim = OTFsim/np.amax(OTFsim)
 
         Io_f =np.fft.fftshift(np.fft.fft2(Io))
-        Io_f = Io_f*filter
+        Io_f = Io_f*OTFsim
         Io = np.abs((np.fft.ifft2(np.fft.fftshift(Io_f))))
+        Io = Io/np.amax(Io)
 
 
-#        gt11 = np.expand_dims(gt_img[:512,:512], 0)
-#        gt21 = np.expand_dims(gt_img[512:,:512], 0)
-#        gt12 = np.expand_dims(gt_img[:512,512:], 0)
-#        gt22 = np.expand_dims(gt_img[512:,512:], 0)
-#        stack = np.concatenate((I,gt11,gt21,gt12,gt22),0)
-#        io.imsave(file,stack)
-
-        frames.append(Io)
+        gt11 = (Io[:512,:512])
+        gt21 = (Io[512:,:512])
+        gt12 = (Io[:512,512:])
+        gt22 = (Io[512:,512:])
 
 
+        OTFsim = transform.resize(OTFsim, (512, 512), anti_aliasing=True)
+        frames.append(OTFsim)
 
-    
+        frames.append(gt11)
+        frames.append(gt21)
+        frames.append(gt12)
+        frames.append(gt22)
+
     stack = np.array(frames)
 
     return stack
