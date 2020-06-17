@@ -235,12 +235,9 @@ def Generate_SIM_Image(opt, Io, Oi):
         for a in range(opt.Nangles):
 
             theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
-            print('angle shift = ', theta)
 
             ky = int(512*opt.Psize*opt.k2*np.cos(theta))
             kx = int(512*opt.Psize*opt.k2*np.sin(theta))
-
-            print('kx = ', kx)
 
             pos_shift = np.roll(OTFtemp,kx,axis=0)
             pos_shift = np.roll(pos_shift,ky,axis=1)
