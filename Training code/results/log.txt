@@ -1,0 +1,5 @@
+Namespace(basedir='', batchSize=1, batchSize_test=6, cpu='', dataset='fouriersim', fid=<_io.TextIOWrapper name='results/log.txt' mode='w' encoding='cp1252'>, imageSize=(512,), local='E:/Users/ew535/Training datasets/Trained sets/16-06-2020', log='store_true', lr=0.0001, model='rcan', modifyPretrainedModel='', multigpu='', n_feats=48, n_resblocks=10, n_resgroups=3, narch=0, nch_in=9, nch_out=1, nepoch=30, noise='', norm='hist', ntest=10, ntrain=4000, out='results', plotinterval=5, reduction=4, root='E:/Users/ew535/Training datasets/Trained sets/16-06-2020', saveinterval=1, scale=1, scheduler='', server='E:/Users/ew535/Training datasets/Trained sets/16-06-2020', task='simin_gtout', test='', testinterval=1, undomulti='', weights='', workers=6) 
+
+
+Epoch 0 done, 0.013409
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 20.41 dB / 0.8228

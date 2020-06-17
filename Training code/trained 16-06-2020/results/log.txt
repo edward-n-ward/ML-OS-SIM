@@ -1,0 +1,38 @@
+Namespace(basedir='', batchSize=1, batchSize_test=1, cpu='', dataset='fouriersim', fid=<_io.TextIOWrapper name='results/log.txt' mode='w' encoding='cp1252'>, imageSize=(512,), local='E:/Users/ew535/Training datasets/Trained sets/11-06-2020/Training', log='store_true', lr=0.0001, model='rcan', modifyPretrainedModel='', multigpu='', n_feats=48, n_resblocks=10, n_resgroups=3, narch=0, nch_in=9, nch_out=1, nepoch=30, noise='', norm='hist', ntest=10, ntrain=2400, out='results', plotinterval=5, reduction=4, root='E:/Users/ew535/Training datasets/Trained sets/11-06-2020/Training', saveinterval=5, scale=1, scheduler='', server='E:/Users/ew535/Training datasets/Trained sets/11-06-2020/Training', task='simin_gtout', test='', testinterval=1, undomulti='', weights='C:/Users/edmax/Edward W/ML python/ML-SIM/Training code/results/prelim.pth', workers=6) 
+
+
+Epoch 10 done, 0.004942
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 22.64 dB / 0.8665
+
+Epoch 11 done, 0.004757
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 25.97 dB / 0.8901
+
+Epoch 12 done, 0.004684
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 24.57 dB / 0.8886
+
+Epoch 13 done, 0.004406
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 25.53 dB / 0.8949
+
+Epoch 14 done, 0.004737
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 25.88 dB / 0.8773
+
+Epoch 15 done, 0.004523
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 25.29 dB / 0.9004
+
+Epoch 16 done, 0.004359
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 23.72 dB / 0.8258
+
+Epoch 17 done, 0.004041
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 24.62 dB / 0.9104
+
+Epoch 18 done, 0.004104
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 23.97 dB / 0.8953
+
+Epoch 19 done, 0.003879
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 27.85 dB / 0.9118
+
+Epoch 20 done, 0.003910
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 26.56 dB / 0.9090
+
+Epoch 21 done, 0.003926
+Testing of 10 samples complete. bc: inf dB / 1.0000, sr: 26.17 dB / 0.8976
