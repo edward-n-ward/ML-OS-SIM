@@ -14,7 +14,61 @@ from datahandler import *
 from skimage import io
 import matplotlib.pyplot as plt
 import glob
+import argparse
 
+def GetParams():
+    
+    opt = argparse.Namespace()
+    opt.model='rcan'
+    opt.lr=1e-4
+    opt.norm='minmax'
+    opt.nepoch=30
+    opt.saveinterval=1
+    opt.modifyPretrainedModel=''
+    opt.multigpu=''
+    opt.undomulti=''
+    opt.ntrain=4000
+    opt.scheduler=''
+    opt.log='store_true'
+    opt.noise=''
+
+# data
+    opt.dataset='fouriersim'
+    opt.imageSize=512,
+    opt.weights='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 17-06-2020/results/prelim.pth'
+    opt.basedir='D:/Work/Test datasets'
+    opt.root='D:/Work/Test datasets'
+    opt.server=''
+    opt.local='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 17-06-2020'
+    opt.out='D:/Work/Test datasets/ML-SIM reconstructions/model 17-06-2020/'
+
+    # computation 
+    opt.workers=6
+    opt.batchSize=1
+    
+    # restoration options
+    opt.task='simin_gtout'
+    opt.scale=1
+    opt.nch_in=9
+    opt.nch_out=1
+    
+    # architecture options 
+    opt.narch=0 
+    opt.n_resblocks=10
+    opt.n_resgroups=3
+    opt.reduction=4
+    opt.n_feats=48
+
+    # test options
+    opt.ntest=10
+    opt.testinterval=1
+    opt.test=''
+    opt.cpu=''
+    opt.batchSize_test=6
+    opt.plotinterval=5
+
+    
+    return opt
 
 def loadimg(imgfile):
     stack = io.imread(imgfile)
@@ -134,7 +188,9 @@ def EvaluateModel(opt):
     for i, imgfile in enumerate(imgs):
 
         inputimgs,wfimgs = loadimg(imgfile)
-        
+        frames = np.zeros([512,512,len(inputimgs)])
+        wfs = np.zeros([512,512,len(inputimgs)])
+
         for j,(inputimg,wf) in enumerate(zip(inputimgs,wfimgs)):
             print('\r[%d/%d][%d/%d], shape is %dx%d - ' % (j+1,len(inputimgs),i+1,len(imgs),inputimg.shape[1],inputimg.shape[2]),end='')
             print('min max for',imgfile,inputimg.min(),inputimg.max())
@@ -148,23 +204,36 @@ def EvaluateModel(opt):
                 sr = sr.cpu()
                 sr = torch.clamp(sr,min=0,max=1) 
 
-                pil_sr_img = toPIL(sr[0])
+                sr_frame = sr.numpy()
+                sr_frame = np.squeeze(sr_frame)
+                wf_frame = wf.numpy()
+                wf_frame = np.squeeze(wf_frame)
 
-            if 'convert' in opt.norm:
-                pil_sr_img = transforms.functional.rotate(pil_sr_img,-90)
+                frames[:,:,j] = sr_frame
+                wfs[:,:,j] = wf_frame
 
-            if opt.out == 'root': # save next to orignal
-                ext = imgfile.split('.')[-1]
-                pil_sr_img.save('%s_out_%d.png' % (imgfile.replace('.' + ext,''),j))
-                toPIL(wf).save('%s_wf_%d.png' % (imgfile.replace('.' + ext,''),j))
-            else:
-                pil_sr_img.save('%s/%s_out_%d.png' % (opt.out,os.path.basename(imgfile).replace('.tif',''),j))
-                toPIL(wf).save('%s/%s_wf_%d.png' % (opt.out,os.path.basename(imgfile).replace('.tif',''),j))
+        frames = (frames * 255).astype('uint8')
+        wfs = (wfs * 255).astype('uint8')
+        if len(inputimgs) > 1:
+            frames = np.moveaxis(frames,2,0)
+            wfs = np.moveaxis(wfs,2,0)
+
+        if opt.out == 'root': # save next to orignal
+            svPath = imgfile[len(opt.root):-4] + '_sr.tif'
+            io.imsave(svPath,frames)
+            svPath = imgfile[len(opt.root):-4] + '_wf.tif'
+            io.imsave(svPath,wfs)
+
+        else:
+            svPath = opt.out +imgfile[len(opt.root):-4] + '_sr.tif' 
+            io.imsave(svPath,frames)
+            svPath = opt.out +imgfile[len(opt.root):-4] + '_wf.tif'
+            io.imsave(svPath,wfs)
 
 
 if __name__ == '__main__':
     from options import parser
-    opt = parser.parse_args()
+    opt = GetParams()
 
     if opt.norm == '':
         opt.norm = opt.dataset
