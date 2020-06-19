@@ -28,8 +28,8 @@ def GetParams():
     # in percentage
     opt.NoiseLevel = 18 + 8*(np.random.rand()-0.5)
     # Poisson noise extent
-    opt.Poisson = np.random.randint(10000,50000)
     # include OTF and GT in stack
+    opt.Poisson = np.random.randint(10000,50000)
     opt.OTF_and_GT = True
     # NA
     opt.NA = 1.2
@@ -49,19 +49,20 @@ def GetParams():
 # ------------ Options --------------
 nrep = 3
 
-sLoc = "E:/Users/ew535/Training datasets/Trained sets/16-06-2020/"
-files = glob.glob('D:/User/Edward/Documents/GitHub/ML-SIM/Data generation/*.png')
+sLoc = "20200619"
+files = glob.glob('G:/My Drive/01datasets/0standard/DIV2K/DIV2K_train_HR/*.png')
 files[0]
 
 Io = io.imread(files[0]) / 255
 Io = Io - 0.3*np.amax(Io)
 Io[Io<0] = 0
 
+os.makedirs(sLoc,exist_ok=True)
 
 n_rep = 5
 sNum = 1
 for n_it in range(n_rep):
-    # I think there was an nRep loop here to go through the data set multiple times
+    
     # ------------ Main loop --------------
     for file in files:
         Io = io.imread(file) 
@@ -81,7 +82,7 @@ for n_it in range(n_rep):
             
         Io = transform.resize(Io, (1024, 1024), anti_aliasing=True)
         
-        if np.random.rand(1) > 0.65: # 35 percent  of the time use the same image for background light
+        if np.random.rand(1) > 0.65: # 35 percent of the time use the same image for background light
 
             # Use same image
             Oi = Io[:,:,np.random.randint(1,3)]  # if not grayscale
@@ -119,10 +120,9 @@ for n_it in range(n_rep):
 
         stack = (stack * 255).astype('uint8')
 
-        svPath = str(sNum)+".tif"
+        svPath = '%s/%d.tif' % (sLoc,sNum)
         io.imsave(svPath,stack)
         
-        if np.remainder(sNum,20) == 0:        
-            print('Done image',sNum, '/', n_rep*len(files))
+        print('Done image [%d/%d]' % (sNum+1, n_rep*len(files)),end='\r')
             
         sNum += 1

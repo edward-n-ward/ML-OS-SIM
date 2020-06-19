@@ -229,7 +229,7 @@ def Generate_SIM_Image(opt, Io, Oi):
         frames.append(PSFi/np.amax(PSFi))
 
         OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
-        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256))))
+        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256)),'constant'))
         OTFtemp = np.abs(OTFsim)
 
         for a in range(opt.Nangles):
@@ -250,7 +250,7 @@ def Generate_SIM_Image(opt, Io, Oi):
         OTFsim = OTFsim/np.amax(OTFsim)
         OTFsim[OTFsim>0.0001] = 1
         kernel = drawGauss (20,20)
-        kernel = np.pad(kernel,((502,502),(502,502)))
+        kernel = np.pad(kernel,((502,502),(502,502)),'constant')
         filter_f = np.fft.fft2(OTFsim)*np.fft.fft2(kernel)
         OTFsim = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
         OTFsim = OTFsim/np.amax(OTFsim)
