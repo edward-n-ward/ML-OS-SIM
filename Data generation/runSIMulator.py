@@ -35,21 +35,24 @@ def GetParams():
     opt.NA = 1.2
     # Emission wavelength
     opt.emission = np.random.randint(500,680)
-    # Pattern frequency  
+    # Pattern frequencies  
     kMax = (2*opt.NA)/(opt.emission)
-    opt.k2 = 0.6*(kMax)
+    factor = 0.75+0.25*np.random.rand()
+    opt.offset = factor
+    opt.k2 = (factor-(0.1+np.random.rand()*0.3))*(kMax)
     # Pixel Size
-    # To maintain niquist these pixels have been halved. SIM images must be upsampled before reconstion
     opt.Psize = np.random.randint(84,110)
     # Image to use for ground truth in training
-    opt.target = 'sim' # 'original' or 'SIM' 
+    opt.target = 'original' # 'original' or 'SIM' 
+    # Location to save test images
+    opt.sloc = "D:/Work/Training datasets/Training data/trained 21-06-2020"
+    # Out of focus depth
+    opt.depthO = 800+200*np.random.rand()
     
     return opt
 
 # ------------ Options --------------
-nrep = 3
 
-sLoc = "E:/Users/ew535/Training datasets/Trained sets/16-06-2020/"
 files = glob.glob('D:/User/Edward/Documents/GitHub/ML-SIM/Data generation/*.png')
 files[0]
 
@@ -58,7 +61,7 @@ Io = Io - 0.3*np.amax(Io)
 Io[Io<0] = 0
 
 
-n_rep = 5
+n_rep = 1
 sNum = 1
 for n_it in range(n_rep):
     # I think there was an nRep loop here to go through the data set multiple times
@@ -119,7 +122,7 @@ for n_it in range(n_rep):
 
         stack = (stack * 255).astype('uint8')
 
-        svPath = str(sNum)+".tif"
+        svPath = opt.sloc +'/' + str(sNum)+ ".tif"
         io.imsave(svPath,stack)
         
         if np.remainder(sNum,20) == 0:        

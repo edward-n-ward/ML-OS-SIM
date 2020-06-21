@@ -51,6 +51,11 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
         for i_s in range(opt.Nshifts):
             ps[i_a, i_s] = 2*pi*i_s/opt.Nshifts + opt.phaseError[i_a, i_s]
 
+    # Pattern OTF
+    PSFp = calcPSF(512,opt.Psize,opt.NA,(opt.emission-30),1.518,1.33,opt.depthO,opt.depthO,1) # Excitation PSF  
+    OTFp = np.abs(np.fft.fftshift(np.fft.fft2(PSFp)))
+
+
     # Illumination patterns
     frames = []
     for i_a in range(opt.Nangles):
@@ -60,7 +65,7 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
             sig = (1 + opt.ModFac*cos(2*pi*(k2mat[i_a, 0]*(X) + k2mat[i_a, 1]*(Y)) + ps[i_a, i_s]))
             
             # Defocused excitation pattern
-            pat_o = np.fft.ifftshift(np.abs(ifft2(fft2(sig)*fftshift(OTFo))))
+            pat_o = np.fft.ifftshift(np.abs(ifft2(fft2(sig)*fftshift(OTFp))))
             pat_o = pat_o/np.amax(pat_o)
 
             sig_i = DIo*sig  # In focus fluorescent response
@@ -167,7 +172,6 @@ def edgeTaper(I,PSF):
 
     return tapered
 
-
 def Generate_SIM_Image(opt, Io, Oi):
     """
     Run the SIMulation
@@ -189,12 +193,12 @@ def Generate_SIM_Image(opt, Io, Oi):
     pixelSize = opt.Psize
     rindexObj = 1.518
     rindexSp = 1.2
-    offset = 0.7+0.2*np.random.rand()
+    offset = opt.offset
     depthI = 10
-    depthO = 800+200*np.random.rand() # Random depth of out of focus signal
+    depthO = opt.depthO # Random depth of out of focus signal
     
     PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset) # In focus PSF
-    PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthO,depthO,offset) # Out of focus PSF    
+    PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,opt.depthO,depthO,offset) # Out of focus PSF    
     
 
     
@@ -206,20 +210,51 @@ def Generate_SIM_Image(opt, Io, Oi):
     
     
     if opt.target == 'original':
-
-        Io = transform.resize(Io, (512, 512), anti_aliasing=True)
-        DIo = Io.astype('float')
+        
+        small = transform.resize(Io, (512, 512), anti_aliasing=True)
+        DIo = small.astype('float')
         DOi = Oi.astype('float')
                     
         frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
-
         frames.append(PSFi/np.amax(PSFi))
-        frames.append(PSFo/np.amax(PSFo))
+
+        OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
+        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256))))
+        OTFtemp = np.abs(OTFsim)
+
+        for a in range(opt.Nangles):
+
+            theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
+
+            ky = int(512*opt.Psize*opt.k2*np.cos(theta))
+            kx = int(512*opt.Psize*opt.k2*np.sin(theta))
+
+            pos_shift = np.roll(OTFtemp,kx,axis=0)
+            pos_shift = np.roll(pos_shift,ky,axis=1)
+
+            neg_shift = np.roll(OTFtemp,-kx,axis=0)
+            neg_shift = np.roll(neg_shift,-ky,axis=1)
+
+            OTFsim = OTFsim+pos_shift+neg_shift
+
+        OTFsim = OTFsim/np.amax(OTFsim)
+        OTFsim[OTFsim>0.0001] = 1
+        kernel = drawGauss (20,20)
+        kernel = np.pad(kernel,((502,502),(502,502)))
+        filter_f = np.fft.fft2(OTFsim)*np.fft.fft2(kernel)
+        OTFsim = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
+        OTFsim = OTFsim/np.amax(OTFsim)
+
+        Io_f =np.fft.fftshift(np.fft.fft2(Io))
+        Io_f = Io_f*OTFsim
+        OTFsim = transform.resize(OTFsim, (512, 512), anti_aliasing=True)
+        frames.append(OTFsim)
+        Io_f = Io_f[255:767,255:767]
+        Io = np.abs((np.fft.ifft2(np.fft.fftshift(Io_f))))
+        Io = Io/np.amax(Io)
         frames.append(Io)
     
     else:
-
-        
 
         small = transform.resize(Io, (512, 512), anti_aliasing=True)
         DIo = small.astype('float')
