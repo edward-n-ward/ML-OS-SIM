@@ -61,7 +61,7 @@ Io = Io - 0.3*np.amax(Io)
 Io[Io<0] = 0
 
 
-n_rep = 1
+n_rep = 5
 sNum = 1
 for n_it in range(n_rep):
     # I think there was an nRep loop here to go through the data set multiple times
