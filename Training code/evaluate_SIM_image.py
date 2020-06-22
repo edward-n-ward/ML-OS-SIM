@@ -3,7 +3,6 @@ import os
 
 import torch
 import time 
-
 import torch.optim as optim
 import torchvision
 from torch.autograd import Variable
@@ -19,6 +18,16 @@ import argparse
 def GetParams():
     
     opt = argparse.Namespace()
+
+# Processing parameters
+
+    opt.histmatch = 'no'
+    opt.weiner = ''
+    opt.backSub = 0
+    opt.taper = 'no'
+
+
+# Training parameters
     opt.model='rcan'
     opt.lr=1e-4
     opt.norm='minmax'
@@ -35,12 +44,12 @@ def GetParams():
 # data
     opt.dataset='fouriersim'
     opt.imageSize=512,
-    opt.weights='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 17-06-2020/results/prelim.pth'
-    opt.basedir='D:/Work/Test datasets'
-    opt.root='D:/Work/Test datasets'
+    opt.weights='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 21-06-2020/results/prelim.pth'
+    opt.basedir='D:/Work/Test datasets/'
+    opt.root='D:/Work/Test datasets/'
     opt.server=''
-    opt.local='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 17-06-2020'
-    opt.out='D:/Work/Test datasets/ML-SIM reconstructions/model 17-06-2020/'
+    opt.local='C:/Users/ed_wa.DESKTOP-6TG1D20/Python work/ML python/Traning code/trained 21-06-2020'
+    opt.out='D:/Work/Test datasets/ML-SIM reconstructions/model 21-06-2020/'
 
     # computation 
     opt.workers=6
@@ -70,6 +79,69 @@ def GetParams():
     
     return opt
 
+
+def plot_filters_multi_channel(t):
+    
+    #get the number of kernals
+    num_kernels = t.shape[0]    
+    
+    #define number of columns for subplots
+    num_cols = 12
+    #rows = num of kernels
+    num_rows = num_kernels
+    
+    #set the figure size
+    fig = plt.figure(figsize=(num_cols,num_rows))
+    
+    #looping through all the kernels
+    for i in range(t.shape[0]):
+        ax1 = fig.add_subplot(num_rows,num_cols,i+1)
+        
+        #for each kernel, we convert the tensor to numpy 
+        npimg = np.array(t[i].numpy(), np.float32)
+        #standardize the numpy image
+        npimg = (npimg - np.mean(npimg)) / np.std(npimg)
+        npimg = np.minimum(1, np.maximum(0, (npimg + 0.5)))
+        npimg = npimg.transpose((1, 2, 0))
+        ax1.imshow(npimg)
+        ax1.axis('off')
+        ax1.set_title(str(i))
+        ax1.set_xticklabels([])
+        ax1.set_yticklabels([])
+        
+    plt.tight_layout()
+    plt.show()
+
+def plot_filters_single_channel(t):
+    
+    #kernels depth * number of kernels
+    nplots = t.shape[0]*t.shape[1]
+    ncols = 12
+    t = t.cpu()
+    nrows = 1 + nplots//ncols
+    #convert tensor to numpy image
+    npimg = np.array(t.numpy(), np.float32)
+    
+    count = 0
+    fig = plt.figure(figsize=(ncols, nrows))
+    
+    #looping through all the kernels in each channel
+    for i in range(t.shape[0]):
+        
+        count += 1
+        ax1 = fig.add_subplot(nrows, ncols, count)
+        npimg = np.array(t[i,:,:].numpy(), np.float32)
+        npimg = (npimg - np.mean(npimg)) / np.std(npimg)
+        npimg = np.minimum(1, np.maximum(0, (npimg + 0.5)))
+        ax1.imshow(npimg)
+        ax1.set_title(str(i))
+        ax1.axis('off')
+        ax1.set_xticklabels([])
+        ax1.set_yticklabels([])
+   
+    plt.tight_layout()
+    plt.show()
+
 def loadimg(imgfile):
     stack = io.imread(imgfile)
     inputimgs,wfimgs = [],[]
@@ -77,17 +149,10 @@ def loadimg(imgfile):
     for i in range(int(len(stack)/9)):
         inputimg = stack[i*9:(i+1)*9]
 
-
-        if opt.nch_in == 6:
-            inputimg = inputimg[[0,1,3,4,6,7]]
-        elif opt.nch_in == 3:
-            inputimg = inputimg[[0,4,8]]
-        
         if inputimg.shape[1] != 512 or inputimg.shape[2] != 512:
             print(imgfile,'not 512x512! Cropping')
             inputimg = inputimg[:,:512,:512]
-
-
+                 
         widefield = np.mean(inputimg,0)
         widefield = (widefield - np.min(widefield)) / (np.max(widefield) - np.min(widefield))    
 
@@ -230,22 +295,57 @@ def EvaluateModel(opt):
             svPath = opt.out +imgfile[len(opt.root):-4] + '_wf.tif'
             io.imsave(svPath,wfs)
 
+def plot_weights(net, layer_num, single_channel = True, collated = False):
+  
+  #extracting the model features at the particular layer number
+  layer = net.head[0]
+  
+  #checking whether the layer is convolution layer or not 
+  if isinstance(layer, nn.Conv2d):
 
-if __name__ == '__main__':
-    from options import parser
-    opt = GetParams()
+    #getting the weight tensor data
+    weight_tensor = net.head[0].weight.data
 
-    if opt.norm == '':
-        opt.norm = opt.dataset
-    elif opt.norm.lower() == 'none':
-        opt.norm = None
+    plot_filters_single_channel(weight_tensor[:,0,:,:])
 
-    if len(opt.basedir) > 0:
-        opt.root = opt.root.replace('basedir',opt.basedir)
-        opt.weights = opt.weights.replace('basedir',opt.basedir)
-        opt.out = opt.out.replace('basedir',opt.basedir)
-        
-    EvaluateModel(opt)
+
+## *******************************************************************************##
+
+
+from options import parser
+
+opt = GetParams()
+
+if opt.norm == '':
+    opt.norm = opt.dataset
+elif opt.norm.lower() == 'none':
+    opt.norm = None
+
+if len(opt.basedir) > 0:
+    opt.root = opt.root.replace('basedir',opt.basedir)
+    opt.weights = opt.weights.replace('basedir',opt.basedir)
+    opt.out = opt.out.replace('basedir',opt.basedir)
+
+net = GetModel(opt)
+
+checkpoint = torch.load(opt.weights)
+
+print('loading checkpoint',opt.weights)
+net.load_state_dict(checkpoint['state_dict'])
+if opt.norm == '':
+    opt.norm = opt.dataset
+elif opt.norm.lower() == 'none':
+    opt.norm = None
+
+if len(opt.basedir) > 0:
+    opt.root = opt.root.replace('basedir',opt.basedir)
+    opt.weights = opt.weights.replace('basedir',opt.basedir)
+    opt.out = opt.out.replace('basedir',opt.basedir)
+
+
+EvaluateModel(opt)
+plot_weights(net, 0, single_channel = True, collated = False)
+
 
 
 
