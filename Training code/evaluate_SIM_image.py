@@ -66,7 +66,7 @@ def GetParams():
     opt.n_resblocks=10
     opt.n_resgroups=3
     opt.reduction=4
-    opt.n_feats=48
+    opt.n_feats=40
 
     # test options
     opt.ntest=10
@@ -343,7 +343,7 @@ if len(opt.basedir) > 0:
     opt.out = opt.out.replace('basedir',opt.basedir)
 
 
-EvaluateModel(opt)
+#EvaluateModel(opt)
 plot_weights(net, 0, single_channel = True, collated = False)
 
 
