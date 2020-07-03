@@ -11,26 +11,14 @@ import matplotlib.pyplot as plt
 def GetParams():
     opt = argparse.Namespace()
 
-    # phase shifts for each stripe
-    opt.Nshifts = 3
-    # number of orientations of stripes
-    opt.Nangles = 3
-    # modulation factor
-    opt.ModFac = 0.3+0.4*np.random.rand()
     # orientation offset
-    opt.alpha = pi/3*(np.random.rand()-0.5)
-    # orientation error
-    opt.angleError = 10*pi/180*(np.random.rand()-0.5)
-    # shuffle the order of orientations
-    opt.shuffleOrientations = False
-    # random phase shift errors
-    opt.phaseError = 1*pi*(0.5-np.random.rand(opt.Nangles, opt.Nshifts))
+    opt.ModFac = 0.3+0.2*np.random.rand()
+    # orientation offset
+    opt.theta = 2*pi*np.random.rand()
     # in percentage
     opt.NoiseLevel = 18 + 8*(np.random.rand()-0.5)
     # Poisson noise extent
-    # include OTF and GT in stack
     opt.Poisson = np.random.randint(10000,50000)
-    opt.OTF_and_GT = True
     # NA
     opt.NA = 1.2
     # Emission wavelength
@@ -42,10 +30,8 @@ def GetParams():
     opt.k2 = (factor-(0.1+np.random.rand()*0.3))*(kMax)
     # Pixel Size
     opt.Psize = np.random.randint(84,110)
-    # Image to use for ground truth in training
-    opt.target = 'original' # 'original' or 'SIM' 
     # Location to save test images
-    opt.sloc = "D:/Work/Training datasets/Training data/trained 21-06-2020"
+    opt.sloc = "D:/User/Edward/Documents/GitHub/ML-SIM/SIMfix/Data generation/"
     # Out of focus depth
     opt.depthO = 800+200*np.random.rand()
     
@@ -53,17 +39,14 @@ def GetParams():
 
 # ------------ Options --------------
 
-sLoc = "20200619"
-files = glob.glob('G:/My Drive/01datasets/0standard/DIV2K/DIV2K_train_HR/*.png')
+files = glob.glob('D:/User/Edward/Documents/GitHub/ML-SIM/SIMfix/Data generation/*.png')
 files[0]
 
 Io = io.imread(files[0]) / 255
 Io = Io - 0.3*np.amax(Io)
 Io[Io<0] = 0
 
-os.makedirs(sLoc,exist_ok=True)
-
-n_rep = 5
+n_rep = 1
 sNum = 1
 for n_it in range(n_rep):
     
@@ -84,7 +67,7 @@ for n_it in range(n_rep):
             Io = np.rot90(Io,2)
             Io = Io[0:minDim,0:minDim,:]
             
-        Io = transform.resize(Io, (1024, 1024), anti_aliasing=True)
+        Io = transform.resize(Io, (512, 512), anti_aliasing=True)
         
         if np.random.rand(1) > 0.65: # 35 percent of the time use the same image for background light
 
@@ -115,7 +98,7 @@ for n_it in range(n_rep):
         Io = np.rot90(Io,n_it)
         Oi = np.rot90(Oi,n_it)
         opt = GetParams()
-        stack = Generate_SIM_Image(opt, Io, Oi)
+        stack = Generate_SIM_frame(opt, Io, Oi)
 
         # normalise
         for i in range(len(stack)):
@@ -124,7 +107,7 @@ for n_it in range(n_rep):
 
         stack = (stack * 255).astype('uint8')
 
-        svPath = '%s/%d.tif' % (sLoc,sNum)
+        svPath = opt.sloc+str(sNum)+ '.tif'
         io.imsave(svPath,stack)
         
         print('Done image [%d/%d]' % (sNum+1, n_rep*len(files)),end='\r')

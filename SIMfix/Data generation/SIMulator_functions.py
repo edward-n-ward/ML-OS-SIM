@@ -49,7 +49,7 @@ def SIMimage(opt, DIo, DOi, PSFi, PSFo, background):
 
     sig_i = DIo*sig  # In focus fluorescent response
     sig_o = pat_o*DOi # Out of focus fluorescent response
-    sig_ideal = DIo*pat_deal # Ideal fluorescent response
+    GT = DIo*pat_ideal # Ideal fluorescent response
     
 
     focalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_i)*fftshift(OTFi)))) # In focus signal
@@ -166,8 +166,9 @@ def Generate_SIM_frame(opt, Io, Oi):
     # PSF variables
 
     small = transform.resize(Io, (512, 512), anti_aliasing=True)
-
     w = small.shape[0]
+    stack = np.zeros((w,w,4))
+    
     pixelSize = opt.Psize
     rindexObj = 1.518
     rindexSp = 1.2
@@ -175,6 +176,7 @@ def Generate_SIM_frame(opt, Io, Oi):
     depthI = 10
     depthO = opt.depthO # Random depth of out of focus signal
     
+
     PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset) # In focus PSF
     PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,opt.depthO,depthO,offset) # Out of focus PSF    
     
@@ -189,9 +191,10 @@ def Generate_SIM_frame(opt, Io, Oi):
     DOi = Oi.astype('float')
                 
     [frame, GT] = SIMimage(opt, DIo, DOi, PSFi, PSFo, background)
-    frame.append(PSFi/np.amax(PSFi))
-    frame.append(PSFo/np.amax(PSFo))
-    frame.append(GT)
+    stack[:,:,0] = frame 
+    stack[:,:,1] = (PSFi/np.amax(PSFi))
+    stack[:,:,2] =(PSFo/np.amax(PSFo))
+    stack[:,:,3] =(GT)
 
     stack = np.array(frame)
 
@@ -211,7 +214,7 @@ def calcPSF(xysize,pixelSize,NA,emission,rindexObj,rindexSp,depth,z_off,offset):
     depth: imaging height above coverslip (in nm)
     Returns
     z_off: distance from focal plane (in nm)
-    offset: factor to account for imperfect detection optics 
+    offset: factor to account for generic imperfections in optics 
     
     OUTPUT VARIABLES:
     psf: 2D array of incoherent PSF normalised between 0 and 1
