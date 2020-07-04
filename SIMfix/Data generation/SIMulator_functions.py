@@ -39,6 +39,8 @@ def SIMimage(opt, DIo, DOi, PSFi, PSFo, background):
     PSFp = calcPSF(512,opt.Psize,opt.NA,(opt.emission-30),1.518,1.33,opt.depthO,opt.depthO,1) # Excitation PSF  
     OTFp = np.abs(np.fft.fftshift(np.fft.fft2(PSFp)))
 
+    frames = []
+
     # Excitation pattern
     sig = (1 + opt.ModFac*cos(2*pi*(k2mat[0]*(X) + k2mat[1]*(Y))))
     pat_ideal = (1 + 2*opt.ModFac*cos(2*pi*(k2mat[0]*(X) + k2mat[1]*(Y))))
@@ -54,7 +56,9 @@ def SIMimage(opt, DIo, DOi, PSFi, PSFo, background):
 
     focalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_i)*fftshift(OTFi)))) # In focus signal
     outFocalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_o)*fftshift(OTFo)))) # Out of focus signal
-    
+    GT = np.fft.ifftshift(np.abs(ifft2(fft2(GT)*fftshift(OTFi)))) # In focus signal
+
+
     ST = focalPlane + background*outFocalPlane # Total signal collected
     
     # Gaussian noise generation
@@ -164,10 +168,6 @@ def Generate_SIM_frame(opt, Io, Oi):
      
     """
     # PSF variables
-
-    small = transform.resize(Io, (512, 512), anti_aliasing=True)
-    w = small.shape[0]
-    stack = np.zeros((w,w,4))
     
     pixelSize = opt.Psize
     rindexObj = 1.518
@@ -175,7 +175,7 @@ def Generate_SIM_frame(opt, Io, Oi):
     offset = opt.offset
     depthI = 10
     depthO = opt.depthO # Random depth of out of focus signal
-    
+    w = Io.shape[0]    
 
     PSFi = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset) # In focus PSF
     PSFo = calcPSF(w,pixelSize,opt.NA,opt.emission,rindexObj,rindexSp,opt.depthO,depthO,offset) # Out of focus PSF    
@@ -189,14 +189,14 @@ def Generate_SIM_frame(opt, Io, Oi):
 
     DIo = Io.astype('float')
     DOi = Oi.astype('float')
-                
-    [frame, GT] = SIMimage(opt, DIo, DOi, PSFi, PSFo, background)
-    stack[:,:,0] = frame 
-    stack[:,:,1] = (PSFi/np.amax(PSFi))
-    stack[:,:,2] =(PSFo/np.amax(PSFo))
-    stack[:,:,3] =(GT)
 
-    stack = np.array(frame)
+ 
+    [frame,GT] = SIMimage(opt, DIo, DOi, PSFi, PSFo, background)
+
+    stack = np.zeros((w,w,3))
+    stack[:,:,0] = frame/np.amax(frame)
+    stack[:,:,1] = PSFi/np.amax(PSFi)
+    stack[:,:,2] = GT/np.amax(GT)
 
     return stack
 

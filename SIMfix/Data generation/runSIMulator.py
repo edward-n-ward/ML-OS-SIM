@@ -31,7 +31,7 @@ def GetParams():
     # Pixel Size
     opt.Psize = np.random.randint(84,110)
     # Location to save test images
-    opt.sloc = "D:/User/Edward/Documents/GitHub/ML-SIM/SIMfix/Data generation/"
+    opt.sloc = 'D:/Work/Training datasets/Training data/SIMfix/Round 1/'
     # Out of focus depth
     opt.depthO = 800+200*np.random.rand()
     
@@ -39,7 +39,8 @@ def GetParams():
 
 # ------------ Options --------------
 
-files = glob.glob('D:/User/Edward/Documents/GitHub/ML-SIM/SIMfix/Data generation/*.png')
+
+files = glob.glob('D:/Work/Training datasets/DIV2K raw/DIV2K_train_HR/*.png')
 files[0]
 
 Io = io.imread(files[0]) / 255
@@ -98,18 +99,13 @@ for n_it in range(n_rep):
         Io = np.rot90(Io,n_it)
         Oi = np.rot90(Oi,n_it)
         opt = GetParams()
+
         stack = Generate_SIM_frame(opt, Io, Oi)
-
-        # normalise
-        for i in range(len(stack)):
-            stack[i] = (stack[i] - np.min(stack[i])) / \
-                (np.max(stack[i]) - np.min(stack[i]))
-
-        stack = (stack * 255).astype('uint8')
-
-        svPath = opt.sloc+str(sNum)+ '.tif'
-        io.imsave(svPath,stack)
-        
-        print('Done image [%d/%d]' % (sNum+1, n_rep*len(files)),end='\r')
-            
+        stack = 255*stack 
+        stack = stack.astype(np.uint8)
+        svPath = opt.sloc+str(sNum)+"_result"+".tif"
+        #stack = np.moveaxis(stack, 2, 0)
+        io.imsave(svPath, stack)
+               
+        print('Done image [%d/%d]' % (sNum, n_rep*len(files)),end='\r')
         sNum += 1

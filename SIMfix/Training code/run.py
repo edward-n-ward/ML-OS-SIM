@@ -14,10 +14,63 @@ from datahandler import GetDataloaders
 
 from plotting import testAndMakeCombinedPlots
 
-from options import parser
 
-opt = parser.parse_args()
+import argparse
+# ------------ Parameters-------------
+def GetParams():
+    
+    opt = argparse.Namespace()
+    opt.model='rcan'
+    opt.lr=1e-4
+    opt.norm='hist'
+    opt.nepoch=30
+    opt.saveinterval=1
+    opt.modifyPretrainedModel=''
+    opt.multigpu=''
+    opt.undomulti=''
+    opt.ntrain=10
+    opt.scheduler=''
+    opt.log='store_true'
+    opt.noise=''
 
+# data
+    opt.dataset='SIMfix'
+    opt.imageSize=512,
+    opt.weights=''
+    opt.basedir=''
+    opt.root='D:/Work/Training datasets/Training data/SIMfix/Round 1'
+    opt.server=''
+    opt.local=''
+    opt.out='results'
+
+    # computation 
+    opt.workers=1
+    opt.batchSize=1
+    
+    # restoration options
+    opt.task='simin_gtout'
+    opt.scale=1
+    opt.nch_in=1
+    opt.nch_out=1
+    
+    # architecture options 
+    opt.narch=0 
+    opt.n_resblocks=10
+    opt.n_resgroups=3
+    opt.reduction=4
+    opt.n_feats=20
+
+    # test options
+    opt.ntest=10
+    opt.testinterval=1
+    opt.test=''
+    opt.cpu=''
+    opt.batchSize_test=6
+    opt.plotinterval=5
+    
+    return opt
+
+opt = GetParams()
 if opt.norm == '':
     opt.norm = opt.dataset
 elif opt.norm.lower() == 'none':
@@ -139,45 +192,13 @@ def train(dataloader, validloader, net, nepoch=10):
         for param_group in optimizer.param_groups:
             print('\nLearning rate', param_group['lr'])
 
-        # if len(opt.lrseq) > 0:
-        #     t = '[5,1e-4,10,1e-5]'
-        #     t = np.array(t)
-        #     epochvec = t[::2].astype('int')
-        #     lrvec = t[1::2].astype('float')
-
-        #     idx = epochvec.indexOf(epoch)
-        #     opt.lr = lrvec[idx]
-        #     optimizer = optim.Adam(net.parameters(), lr=opt.lr)
-
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
 
             optimizer.zero_grad()
-            if opt.model == 'ffdnet':
-                stdvec = torch.zeros(lr.shape[0])
-                for j in range(lr.shape[0]):
-                    noise = lr[j] - hr[j]
-                    stdvec[j] = torch.std(noise)
-                noise = net(lr.cuda(), stdvec.cuda())
-                sr = torch.clamp(lr.cuda() - noise, 0, 1)
-                gt_noise = lr.cuda() - hr.cuda()
-                loss = loss_function(noise, gt_noise)
-            elif opt.task == 'residualdenoising':
-                noise = net(lr.cuda())
-                gt_noise = lr.cuda() - hr.cuda()
-                loss = loss_function(noise, gt_noise)
-            else:
-                sr = net(lr.cuda())
-                if opt.task == 'segment':
-                    if opt.nch_out > 2:
-                        hr_classes = torch.round((opt.nch_out+1)*hr).long()
-                        loss = loss_function(
-                            sr.squeeze(), hr_classes.squeeze().cuda())
-                    else:
-                        loss = loss_function(
-                            sr.squeeze(), hr.long().squeeze().cuda())
-                else:
-                    loss = loss_function(sr, hr.cuda())
+
+            sr = net(lr.cuda())
+            loss = loss_function(sr, hr.cuda())
 
             loss.backward()
             optimizer.step()
