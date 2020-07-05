@@ -56,7 +56,7 @@ def GetParams():
     # architecture options 
     opt.narch=0 
     opt.n_resblocks=10
-    opt.n_resgroups=3
+    opt.n_resgroups=2
     opt.reduction=4
     opt.n_feats=20
 

@@ -166,8 +166,7 @@ class SIMfix_dataset(Dataset):
     def __getitem__(self, index):
         
         stack = io.imread(self.images[index])
-
-        inputimg = stack[:,:,0]
+        inputimg = np.expand_dims(stack[:,:,0], axis=0)
         gt = stack[:,:,2]
 
 
