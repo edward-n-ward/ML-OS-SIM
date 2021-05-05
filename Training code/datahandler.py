@@ -771,7 +771,12 @@ class Fourier_SIM_dataset(Dataset):
         if self.nch_in == 6:
             inputimg = inputimg[[0,1,3,4,6,7]]
         elif self.nch_in == 3:
-            inputimg = inputimg[[0,4,8]]
+            inputimg = inputimg[[0,1,2]]
+        elif self.nch_in == 4:
+            inputimg = inputimg[[0,1,2,3]]
+        elif self.nch_in == 1:
+            inputimg = inputimg[[0]]
+
 
         if len(stack) > 9:
             # otf = stack[9]
@@ -782,7 +787,7 @@ class Fourier_SIM_dataset(Dataset):
             else:
                 gt = stack[self.nch_in+2]
         else:
-            gt = stack[0] # if it doesn't exist, doesn't matter
+            gt = stack[self.nch_in+1] # if it doesn't exist, doesn't matter
 
 
         # widefield = stack[12]
@@ -814,13 +819,14 @@ class Fourier_SIM_dataset(Dataset):
                 inputimg[i] = fac * 255 / np.max(inputimg[i]) * inputimg[i]
 
 
-        inputimg = inputimg.astype('float') / np.max(inputimg) # used to be /255
-        gt = gt.astype('float') / np.max(gt) # used to be /255
+        inputimg = inputimg.astype('float') / 255 # used to be /255
+        gt = gt.astype('float') / 255  # used to be /255
+        
         widefield = np.mean(inputimg,0)
 
         if len(stack) > self.nch_in+2:
             simimg = stack[self.nch_in+2] # sim reference image
-            simimg = simimg.astype('float') / np.max(simimg)
+            simimg = simimg.astype('float') / 255
         else:
             simimg = np.mean(inputimg,0) # same as widefield
         
@@ -842,7 +848,7 @@ class Fourier_SIM_dataset(Dataset):
             simimg = torch.tensor(simimg).unsqueeze(0).float()
 
             # normalise 
-            gt = (gt - torch.min(gt)) / (torch.max(gt) - torch.min(gt))
+            # gt = (gt - torch.min(gt)) / (torch.max(gt) - torch.min(gt))
             simimg = (simimg - torch.min(simimg)) / (torch.max(simimg) - torch.min(simimg))
             widefield = (widefield - torch.min(widefield)) / (torch.max(widefield) - torch.min(widefield))
 
@@ -877,7 +883,7 @@ def load_fourier_SIM_dataset(root, category,opt):
     else:
         dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
     return dataloader    
-
+Fourier_SIM_dataset
 
 
 

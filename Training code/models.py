@@ -474,7 +474,7 @@ class RCAN(nn.Module):
 
         # define head module
         if self.narch == 0:
-            modules_head = [conv(opt.nch_in, n_feats, kernel_size)]
+            modules_head = [conv(opt.nch_in, n_feats,  5)]
             self.head = nn.Sequential(*modules_head)
         else:
             self.head0 = conv(1, n_feats, kernel_size)

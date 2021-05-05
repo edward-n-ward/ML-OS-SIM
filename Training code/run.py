@@ -16,6 +16,9 @@ from plotting import testAndMakeCombinedPlots
 
 from options import parser
 
+torch.cuda.empty_cache()
+
+
 opt = parser.parse_args()
 
 if opt.norm == '':
