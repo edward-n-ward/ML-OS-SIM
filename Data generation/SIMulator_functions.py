@@ -5,7 +5,7 @@ from numpy.fft import fft, fft2, ifft2, fftshift, ifftshift
 from skimage import io, transform
 import scipy.special
 
-def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
+def SIMimages(opt, DIo, DOi, PSFi, PSFo, background,foreground):
     """
     Function to generate raw sim images
     
@@ -63,19 +63,22 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
             
             # Excitation pattern
             sig = (1 + opt.ModFac*cos(2*pi*(k2mat[i_a, 0]*(X) + k2mat[i_a, 1]*(Y)) + ps[i_a, i_s]))
-            
-            # Defocused excitation pattern
-            pat_o = np.fft.ifftshift(np.abs(ifft2(fft2(sig)*fftshift(OTFp))))
-            pat_o = pat_o/np.amax(pat_o)
+            perfSig = (1 + 2*opt.ModFac*cos(2*pi*(k2mat[i_a, 0]*(X) + k2mat[i_a, 1]*(Y)) + ps[i_a, i_s]))
 
             sig_i = DIo*sig  # In focus fluorescent response
-            sig_o = pat_o*DOi # Out of focus fluorescent response
+            perfSig = DIo*sig # Ideal SIM response
+            
+            sig_o = DOi*(1+opt.ModFac) # Out of focus fluorescent response
             
 
             focalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_i)*fftshift(OTFi)))) # In focus signal
-            outFocalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_o)*fftshift(OTFo)))) # Out of focus signal
+            focalPlane = focalPlane/np.amax(focalPlane)
             
-            ST = focalPlane + background*outFocalPlane # Total signal collected
+            outFocalPlane = np.fft.ifftshift(np.abs(ifft2(fft2(sig_o)*fftshift(OTFo)))) # Out of focus signal
+            outFocalPlane = outFocalPlane/np.amax(outFocalPlane)
+            
+            ST = foreground*focalPlane + background*outFocalPlane # Total signal collected
+            ST = ST/np.amax(ST)
             
             # Gaussian noise generation
             aNoise = opt.NoiseLevel/100  # noise
@@ -83,94 +86,16 @@ def SIMimages(opt, DIo, DOi, PSFi, PSFo, background):
             NoiseFrac = 1  # may be set to 0 to avoid noise addition
 
             # Poisson noise generation
-            poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
+            interim = ST*opt.Poisson
+            if np.amax(interim)<400:
+                poissonNoise = np.random.poisson(ST*opt.Poisson).astype(float)
+                STnoisy = ST + NoiseFrac*nST + poissonNoise
+            else:
+                STnoisy = ST + NoiseFrac*nST
             
-            # noise added raw SIM images
-            #STnoisy = ST + NoiseFrac*nST
-            STnoisy = ST + NoiseFrac*nST + poissonNoise 
             frames.append(STnoisy)
 
     return frames
-
-def drawGauss (std,width):
-    """
-    Generate a 2D Gaussian. Output is always square
-
-    Parameters
-    ----------
-    std: Standard deviation of gaussian
-
-    width: Width of square output
-
-    Returns
-    -------
-    arg: Square array with 2D Gaussian function centred about the middle
-    """
-
-    width = np.linspace(-width/2,width/2,width) # Genate array of values around centre
-    kx, ky = np.meshgrid(width,width) # Generate square arrays with co-ordinates about centre
-    kx = np.multiply(kx,kx) # Calculate 2D Gaussian function
-    ky = np.multiply(ky,ky)
-    arg = np.add(kx,ky)
-    arg = np.exp(arg/(2*std*std))
-    arg = arg/np.sum(arg)
-    arg = arg/np.amax(arg)
-
-    return arg
-
-def edgeTaper(I,PSF):
-    """
-    Taper the edge of an image with the provided point-spread function. This 
-    helps to remove edging artefacts when performing deconvolution operations in 
-    frequency space. The output is normalised  between [0,1] image with blurred 
-    edges tapered to a value of 0.5.
-
-    Parameters
-    ----------
-    I: Image to be tapered
-
-    PSF: Point-spread function to be used for taper
-
-        
-    Returns
-    -------
-    tapered: Image with tapered edges
-
-    """
-
-    I = I/np.amax(I)
-
-    PSFproj=np.sum(PSF, axis=0) # Calculate the 1D projection of the PSF
-    # Generate 2 1D arrays with the tapered PSF at the leading edge
-    beta1 = np.pad(PSFproj,(0,(I.shape[1]-1-PSFproj.shape[0])),'constant',constant_values=(0))
-    beta2 = np.pad(PSFproj,(0,(I.shape[0]-1-PSFproj.shape[0])),'constant',constant_values=(0))
-
-    # In frequency space replicate the tapered edge at both ends of each 1D array
-    z1 = np.fft.fftn(beta1) # 1D Fourier transform 
-    z1 = abs(np.multiply(z1,z1)) # Absolute value of the square of the Fourier transform
-    z1=np.real(np.fft.ifftn(z1)) # Real value of the inverse Fourier transform
-    z1 = np.append(z1,z1[0]) # Ensure the edges of the matrix are symetric 
-    z1 = 1-(z1/np.amax(z1)) # Normalise
-
-    z2 = np.fft.fftn(beta2)
-    z2 = abs(np.multiply(z2,z2))
-    z2=np.real(np.fft.ifftn(z2))
-    z2 = np.append(z2,z2[0])
-    z2 = 1-(z2/np.amax(z2))
-
-    # Use matrix multiplication to generate a 2D edge filter
-    q=np.matmul(z2[:,None],z1[None,:])
-
-    #calculate the tapered image as the weighted sum of the blured and raw image
-    tapered = np.multiply(I,q)+np.multiply((1-q),0.5*np.zeros(I.shape))
-    Imax = np.amax(I)
-    Imin = np.amin(I)
-
-    # Bound the output by the min and max values of the oroginal image
-    tapered[tapered < Imin] = Imin
-    tapered[tapered > Imax] = Imax
-
-    return tapered
 
 def Generate_SIM_Image(opt, Io, Oi):
     """
@@ -202,114 +127,30 @@ def Generate_SIM_Image(opt, Io, Oi):
     
 
     
-    # To prevent aggressive background removal only add background to 60 percent of training data
-    if np.random.rand() > 0.4:
-        background = 0.7+0.1*np.random.rand() # Random background intensity
+    # To prevent aggressive background removal only add background to 90 percent of training data
+    ratio = np.random.rand()
+    if  ratio > 0.1:
+        background = 0.6+0.3*np.random.rand() # Random background intensity
+        foreground = 1
+        fg = 1
     else:
         background = 0
+        foreground = 1
+        fg = 1
     
-    
-    if opt.target == 'original':
-        
-        small = transform.resize(Io, (512, 512), anti_aliasing=True)
-        DIo = small.astype('float')
-        DOi = Oi.astype('float')
-                    
-        frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
-        frames.append(PSFi/np.amax(PSFi))
+    small = transform.resize(Io, (512, 512), anti_aliasing=True)
+    DIo = small.astype('float')
+    DOi = Oi.astype('float')
+                
+    frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background, foreground)
 
-        OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
-        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256))))
-        OTFtemp = np.abs(OTFsim)
+    PSFi = calcPSF(w,pixelSize*2,opt.NA,opt.emission,rindexObj,rindexSp,depthI,0,offset)
+    OTFi = np.abs(np.fft.fftshift(np.fft.fft2(PSFi)))
+    GT = (np.abs(ifft2(fft2(DIo)*fftshift(OTFi)))) # In focus signal
+    GT = GT/np.amax(GT)
 
-        for a in range(opt.Nangles):
-
-            theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
-
-            ky = int(512*opt.Psize*opt.k2*np.cos(theta))
-            kx = int(512*opt.Psize*opt.k2*np.sin(theta))
-
-            pos_shift = np.roll(OTFtemp,kx,axis=0)
-            pos_shift = np.roll(pos_shift,ky,axis=1)
-
-            neg_shift = np.roll(OTFtemp,-kx,axis=0)
-            neg_shift = np.roll(neg_shift,-ky,axis=1)
-
-            OTFsim = OTFsim+pos_shift+neg_shift
-
-        OTFsim = OTFsim/np.amax(OTFsim)
-        OTFsim[OTFsim>0.0001] = 1
-        kernel = drawGauss (20,20)
-        kernel = np.pad(kernel,((502,502),(502,502)))
-        filter_f = np.fft.fft2(OTFsim)*np.fft.fft2(kernel)
-        OTFsim = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
-        OTFsim = OTFsim/np.amax(OTFsim)
-
-        Io_f =np.fft.fftshift(np.fft.fft2(Io))
-        Io_f = Io_f*OTFsim
-        OTFsim = transform.resize(OTFsim, (512, 512), anti_aliasing=True)
-        frames.append(OTFsim)
-        Io_f = Io_f[255:767,255:767]
-        Io = np.abs((np.fft.ifft2(np.fft.fftshift(Io_f))))
-        Io = Io/np.amax(Io)
-        frames.append(Io)
-    
-    else:
-
-        small = transform.resize(Io, (512, 512), anti_aliasing=True)
-        DIo = small.astype('float')
-        DOi = Oi.astype('float')
-                    
-        frames = SIMimages(opt, DIo, DOi, PSFi, PSFo, background)
-        frames.append(PSFi/np.amax(PSFi))
-
-        OTFi = np.fft.fftshift(np.fft.fft2(PSFi))
-        OTFsim = np.abs(np.pad(OTFi,((256,256),(256,256)),'constant'))
-        OTFtemp = np.abs(OTFsim)
-
-        for a in range(opt.Nangles):
-
-            theta = a*2*np.pi/opt.Nangles + opt.alpha + opt.angleError
-
-            ky = int(512*opt.Psize*opt.k2*np.cos(theta))
-            kx = int(512*opt.Psize*opt.k2*np.sin(theta))
-
-            pos_shift = np.roll(OTFtemp,kx,axis=0)
-            pos_shift = np.roll(pos_shift,ky,axis=1)
-
-            neg_shift = np.roll(OTFtemp,-kx,axis=0)
-            neg_shift = np.roll(neg_shift,-ky,axis=1)
-
-            OTFsim = OTFsim+pos_shift+neg_shift
-
-        OTFsim = OTFsim/np.amax(OTFsim)
-        OTFsim[OTFsim>0.0001] = 1
-        kernel = drawGauss (20,20)
-        kernel = np.pad(kernel,((502,502),(502,502)),'constant')
-        filter_f = np.fft.fft2(OTFsim)*np.fft.fft2(kernel)
-        OTFsim = np.abs(np.fft.ifftshift(np.fft.ifft2(filter_f)))
-        OTFsim = OTFsim/np.amax(OTFsim)
-
-        Io_f =np.fft.fftshift(np.fft.fft2(Io))
-        Io_f = Io_f*OTFsim
-        Io = np.abs((np.fft.ifft2(np.fft.fftshift(Io_f))))
-        Io = Io/np.amax(Io)
-
-
-        gt11 = (Io[:512,:512])
-        gt21 = (Io[512:,:512])
-        gt12 = (Io[:512,512:])
-        gt22 = (Io[512:,512:])
-
-
-        OTFsim = transform.resize(OTFsim, (512, 512), anti_aliasing=True)
-        frames.append(OTFsim)
-
-        frames.append(gt11)
-        frames.append(gt21)
-        frames.append(gt12)
-        frames.append(gt22)
-
+    frames.append(PSFi)
+    frames.append(GT)
     stack = np.array(frames)
 
     return stack
@@ -326,9 +167,9 @@ def calcPSF(xysize,pixelSize,NA,emission,rindexObj,rindexSp,depth,z_off,offset):
     rindexObj: refractive index of objective lens
     rindexSp: refractive index of the sample
     depth: imaging height above coverslip (in nm)
-    Returns
     z_off: distance from focal plane (in nm)
-    
+    offset: clip on max spatial frequency
+
     OUTPUT VARIABLES:
     psf: 2D array of incoherent PSF normalised between 0 and 1
     
