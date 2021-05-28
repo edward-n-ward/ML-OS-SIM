@@ -1,25 +1,76 @@
 import math
 import os
-
 import torch
 import torch.nn as nn
 import time
-
 import torch.optim as optim
 import torchvision
 from torch.autograd import Variable
-
 from models import GetModel
 from datahandler import GetDataloaders
 
 from plotting import testAndMakeCombinedPlots
 
-from options import parser
 
+import argparse
+def GetParams():
+  opt = argparse.Namespace()
+
+  opt.model='rcan'#'model to use'
+  opt.lr = 0.0001 # learning rate
+  opt.norm = 'minmax' # if normalization should not be used
+  opt.nepoch =100 # number of epochs to train for
+  opt.saveinterval =1 # number of epochs between saves
+  opt.modifyPretrainedModel = False
+  opt.multigpu = False
+  opt.undomulti = False
+  opt.ntrain = 5000 # number of samples to train on
+  opt.scheduler = '' # options for a scheduler, format: stepsize,gamma
+  opt.log = False
+  opt.noise ='' # options for noise added, format: poisson,gaussVar
+
+  # data
+  opt.dataset = 'fouriersim' # dataset to train
+  opt.imageSize = '255' # the low resolution image size
+  opt.weights = '/home/ew535/ML-SIM/pyTorch_training/outputs/generated 27-05-2021/prelim92.pth' # model to retrain from
+  opt.basedir = '' # path to prepend to all others paths: root, output, weights
+  opt.root ='/rds/user/ew535/hpc-work/training data/secondTest/' # dataset to train
+  opt.server = '/rds/user/ew535/hpc-work/training data/secondTest/' # whether to use server root preset
+  opt.local = '/rds/user/ew535/hpc-work/training data/secondTest/' # whether to use local root preset: C:/phd-data/datasets/
+  opt.out = '/home/ew535/ML-SIM/pyTorch_training/outputs/generated 27-05-2021' # folder to output model training results
+
+  # computation 
+  opt.workers  = 1 # number of data loading workers
+  opt.batchSize = 1 # input batch size
+  opt.accumulations = 15 # batch size multiplier
+
+  # restoration options
+  opt.task ='sr' # restoration task 
+  opt.scale = 1 # low to high resolution scaling factor
+  opt.nch_in = 3 # channels in input 
+  opt.nch_out = 1 # channels in output 
+
+  # architecture options 
+  opt.narch = 0 # architecture-dependent parameter
+  opt.n_resblocks  = 3 # number of residual blocks 
+  opt.n_resgroups  = 5 # number of residual groups 
+  opt.reduction  = 16 
+  opt.n_feats = 96 # number of feature maps
+
+  # test options
+  opt.ntest  = 10 # number of images to test per epoch or test run 
+  opt.testinterval  = 1 # number of epochs between tests during training 
+  opt.test = False
+  opt.cpu = False # not supported for training
+  opt.batchSize_test  = 1 # input batch size for test loader 
+  opt.plotinterval  = 1 # number of test samples between plotting 
+    
+  return opt
+
+
+
+opt = GetParams()
 torch.cuda.empty_cache()
-
-
-opt = parser.parse_args()
 
 if opt.norm == '':
     opt.norm = opt.dataset
@@ -86,8 +137,10 @@ def train(dataloader, validloader, net, nepoch=10):
     if opt.task == 'segment':
         loss_function = nn.CrossEntropyLoss()
     else:
-        loss_function = nn.MSELoss()
+        loss_function = nn.L1Loss()
+    
     optimizer = optim.Adam(net.parameters(), lr=opt.lr)
+    
     loss_function.cuda()
     if len(opt.weights) > 0:  # load previous weights?
         checkpoint = torch.load(opt.weights)
@@ -117,14 +170,6 @@ def train(dataloader, validloader, net, nepoch=10):
             start_epoch = checkpoint['epoch']
 
 
-        # if opt.modifyPretrainedModel:
-        #     mod = list(net.children())
-        #     mod.pop()
-        #     mod.append(nn.Conv2d(64, 2, 1))
-        #     net = torch.nn.Sequential(*mod)
-        #     net.cuda()
-        #     opt.task = 'segment'
-
     if len(opt.scheduler) > 0:
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001, threshold_mode='rel', cooldown=5, min_lr=0, eps=1e-08)
         stepsize, gamma = int(opt.scheduler.split(
@@ -135,60 +180,39 @@ def train(dataloader, validloader, net, nepoch=10):
 
     count = 0
     opt.t0 = time.perf_counter()
-
     for epoch in range(start_epoch, nepoch):
         mean_loss = 0
 
         for param_group in optimizer.param_groups:
             print('\nLearning rate', param_group['lr'])
 
-        # if len(opt.lrseq) > 0:
-        #     t = '[5,1e-4,10,1e-5]'
-        #     t = np.array(t)
-        #     epochvec = t[::2].astype('int')
-        #     lrvec = t[1::2].astype('float')
-
-        #     idx = epochvec.indexOf(epoch)
-        #     opt.lr = lrvec[idx]
-        #     optimizer = optim.Adam(net.parameters(), lr=opt.lr)
-
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
+               
+            sr = net(lr.cuda())
 
-            optimizer.zero_grad()
-            if opt.model == 'ffdnet':
-                stdvec = torch.zeros(lr.shape[0])
-                for j in range(lr.shape[0]):
-                    noise = lr[j] - hr[j]
-                    stdvec[j] = torch.std(noise)
-                noise = net(lr.cuda(), stdvec.cuda())
-                sr = torch.clamp(lr.cuda() - noise, 0, 1)
-                gt_noise = lr.cuda() - hr.cuda()
-                loss = loss_function(noise, gt_noise)
-            elif opt.task == 'residualdenoising':
-                noise = net(lr.cuda())
-                gt_noise = lr.cuda() - hr.cuda()
-                loss = loss_function(noise, gt_noise)
-            else:
-                sr = net(lr.cuda())
-                if opt.task == 'segment':
-                    if opt.nch_out > 2:
-                        hr_classes = torch.round((opt.nch_out+1)*hr).long()
-                        loss = loss_function(
-                            sr.squeeze(), hr_classes.squeeze().cuda())
-                    else:
-                        loss = loss_function(
-                            sr.squeeze(), hr.long().squeeze().cuda())
+            if opt.task == 'segment':
+                if opt.nch_out > 2:
+                    hr_classes = torch.round((opt.nch_out+1)*hr).long()
+                    loss = loss_function(
+                        sr.squeeze(), hr_classes.squeeze().cuda())
                 else:
-                    loss = loss_function(sr, hr.cuda())
-
+                    loss = loss_function(
+                        sr.squeeze(), hr.long().squeeze().cuda())
+            else:
+           
+                    loss = loss_function(sr, hr.cuda())             # Compute loss function
+            loss = loss / opt.accumulations  # Normalize our loss (if averaged)
             loss.backward()
-            optimizer.step()
+            
+            if (i+1) % opt.accumulations == 0:             # Wait for several backward steps
+                optimizer.step()                            # Now we can do an optimizer step
+                optimizer.zero_grad()                           # Reset gradients tensors
+            
 
             ######### Status and display #########
             mean_loss += loss.data.item()
-            print('\r[%d/%d][%d/%d] Loss: %0.6f' % (epoch+1, nepoch,
-                                                    i+1, len(dataloader), loss.data.item()), end='')
+            print('\rLoss: %0.6f' % (loss.data.item()), end='')
 
             count += 1
             if opt.log and count*opt.batchSize // 1000 > 0:
@@ -217,8 +241,6 @@ def train(dataloader, validloader, net, nepoch=10):
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
-            # if opt.scheduler:
-            # scheduler.step(mean_loss / len(dataloader))
 
         if (epoch + 1) % opt.saveinterval == 0:
             # torch.save(net.state_dict(), opt.out + '/prelim.pth')
@@ -238,12 +260,7 @@ def train(dataloader, validloader, net, nepoch=10):
 
 
 if __name__ == '__main__':
-
-    try:
-        os.makedirs(opt.out)
-    except IOError:
-        pass
-
+    
     opt.fid = open(opt.out + '/log.txt', 'w')
     print(opt)
     print(opt, '\n', file=opt.fid)
