@@ -26,16 +26,16 @@ def GetParams():
   opt = argparse.Namespace()
 
   # data
-  opt.weights = 'C:/Users/SIM_ADMIN/Documents/GitHub/AtheSIM/ML-SIM-inference-for-AtheiSIM/0216_SIMRec_0214_rndAll_rcan_continued.pth' # model to retrain from
+  opt.weights = 'D:/ML-SIM/OS-SIM/models/trained 21-06-2021/results/prelim70.pth' # model to retrain from
   opt.imageSize = 512
-  opt.root = 'D:/SIM_Data/16-06-2021/488mito 561ER 647tubulin/rolling_10/to process'
-  opt.out = 'D:/SIM_Data/16-06-2021/488mito 561ER 647tubulin/rolling_10/results'
+  opt.root = 'D:/User/Edward/OneDrive - University Of Cambridge/OS-SIM test data'
+  opt.out = 'D:/ML-SIM/OS-SIM/ML-SIM reconstructions/HPC 21-06-2021'
 
   # input/output layer options
   opt.norm = 'minmax' # if normalization should not be used
   opt.task = 'simin_gtout'
   opt.scale = 1
-  opt.nch_in = 9
+  opt.nch_in = 3
   opt.nch_out = 1
 
   # architecture options 
@@ -43,7 +43,7 @@ def GetParams():
   opt.narch = 0
   opt.n_resgroups = 3
   opt.n_resblocks = 10
-  opt.n_feats = 48
+  opt.n_feats = 96
   opt.reduction = 16
 
   # test options
@@ -124,7 +124,8 @@ def EvaluateModel(opt):
             #stackSubset = stackSubset-np.amin(stackSubset)
             stackSubset = stackSubset/np.amax(stackSubset)
             for f in range(1,opt.nch_in):
-                stackSubset[f,:,:] =  match_histograms(stackSubset[f,:,:],stackSubset[0,:,:])
+                stackSubset[f,:,:] =  stackSubset[f,:,:]-np.amin(stackSubset[f,:,:])
+                stackSubset[f,:,:] = stackSubset[f,:,:]/np.amax(stackSubset[f,:,:])
             wf = np.mean(stackSubset,0)
 
             sub_tensor = torch.from_numpy(stackSubset)
@@ -143,10 +144,10 @@ def EvaluateModel(opt):
                 sr_frame = sr.numpy()
                 sr_frame = np.squeeze(sr_frame)                               
 
-            if stack_idx == 0:
-                reference = np.copy(sr_frame)
-            else: 
-                sr_frame = match_histograms(sr_frame,reference)
+            #if stack_idx == 0:
+            #    reference = np.copy(sr_frame)
+            #else: 
+            #    sr_frame = match_histograms(sr_frame,reference)
 
         
 
