@@ -15,7 +15,7 @@ search_range=0.6;
 
 
 
-path = 'D:\User\Edward\OneDrive - University Of Cambridge\OS-SIM test data\Meng mito 2.tif';
+path = 'D:\User\Edward\OneDrive - University Of Cambridge\OS-SIM test data\01-10-2021\cell11.tif';
 
 % for imFile = 1:length(files) 
 % %filepath=fullfile(path,files(imFile));%replace with your file's path
@@ -32,7 +32,9 @@ PSF_edge = fspecial('gaussian',5,40);
 for p=1:p_num
         temp = double(imread(path,p));
         temp = temp-min(temp(:)); temp = temp./max(temp(:));
-        noiseimage(:,:,1,p) = temp;
+        
+        sizeMin = min(size(temp)); % not sure if needed bu mkae it square
+        noiseimage(:,:,1,p) = temp(1:sizeMin,1:sizeMin); 
 end
 [xsize, ysize] = size(noiseimage(:,:,1));
 [Y,X]=meshgrid(1:ysize,1:xsize);
@@ -43,6 +45,7 @@ yr=Y-yc;
 xr=X-xc;
 R=sqrt((xr).^2+(yr).^2);% distance between the point (x,y) and center (xc,yc)
 %% Generate the PSF
+
 pixelnum=xsize;
 rpixel=NA*pixelnum*psize/lambda;
 cutoff=round(2*rpixel);% cutoff frequency
@@ -53,13 +56,12 @@ apsfde=fftshift(ifft2(ifftshift(ctfde)));
 ipsfde=ifftscalede*abs(apsfde).^2;
 OTFde=real(fftshift(fft2(ifftshift(ipsfde))));
 clear apsfde ctfde temp X Y
+
 %% filter/deconvolution before using noiseimage
 widefield=sum(sum(noiseimage,4),3);
 widefield=quasi_wnr(OTFde,widefield,wiener_factor^2);
 widefield=widefield.*(widefield>0);
 
-
-widefield = mean(noiseimage,3);
 
 for p=1:p_num
         
@@ -71,9 +73,6 @@ for p=1:p_num
         noiseimage(:,:,1,p)=noiseimage(:,:,1,p).*(noiseimage(:,:,1,p)>0);
 
 end
-widefield=widefield./max(widefield(:))*max(noiseimage(:));
-
-
 
 separated_FT=zeros(xsize,ysize,a_num,3);
 noiseimagef=zeros(size(noiseimage));
@@ -97,7 +96,7 @@ for ii=1:a_num
     separated_FT(:,:,ii,2)=rep_temp;
     separated_FT(:,:,ii,3)=rem_temp;
 end
-clear re0_temp rep_temp rem_temp noiseimage
+clear re0_temp rep_temp rem_temp
 
 fmask=double(sqrt(xr.^2+yr.^2)>cutoff*mask_factor);
 [shiftvalue,~]=frequency_est_tirf_v2(separated_FT,0.008,fmask,show_initial_result_flag,mask_factor*cutoff);
@@ -112,8 +111,6 @@ for ii=1:a_num
 end
 
 %% phase correction with inverse matrix based algorithm
-
-
 %obtain a more precise estimation of the period and the directon of sinusodial pattern
 [ precise_shift,~] = precise_frequency_tirf(noiseimagef,shiftvalue,search_range);
 
@@ -131,10 +128,27 @@ for ii=1:a_num
     end
 end
 
+B = squeeze(noiseimage);
 
+B1 = noiseimage(:,:,1) - noiseimage(:,:,2);
+B2 = noiseimage(:,:,1) - noiseimage(:,:,3);
+B3 = noiseimage(:,:,2) - noiseimage(:,:,3);
 
+final = abs(((B1.^2)+(B2.^2)+(B3.^2)).^0.5);
+final = final-min(final(:)); final = uint16(65000*final./max(final(:)));
+figure(); imshow(final); colormap gray; axis square; axis off;
 
+corr1 = tan((auto_phase(2)-auto_phase(3))/2);
+corr2 = tan((auto_phase(3)-auto_phase(1))/2);
+corr = B3/corr1 - B2/corr2;
+better = (B1.^2 + corr.^2).^0.5;
+better = better-min(better(:)); better = uint16(65000*better./max(better(:)));
+figure(); imshow(better); colormap gray; axis square; axis off
 
+FT = fftshift(fft2(better));
+FT = abs(log(FT+1));
+FT = FT-min(FT(:)); FT = uint16(65000*FT./max(FT(:)));
+figure(); imshow(FT); colormap gray; axis square; axis off
 
 
 
