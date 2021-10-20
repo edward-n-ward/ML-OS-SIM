@@ -26,10 +26,10 @@ def GetParams():
   opt = argparse.Namespace()
 
   # data
-  opt.weights = 'D:/ML-SIM/OS-SIM/models/trained 21-06-2021/results/prelim70.pth' # model to retrain from
+  opt.weights = 'D:/User/Edward/Documents/prelim128.pth' # model to retrain from
   opt.imageSize = 512
   opt.root = 'D:/User/Edward/OneDrive - University Of Cambridge/OS-SIM test data'
-  opt.out = 'D:/ML-SIM/OS-SIM/ML-SIM reconstructions/HPC 21-06-2021'
+  opt.out = 'D:/ML-SIM/OS-SIM/ML-SIM reconstructions/HPC 27-06-2021 apo'
 
   # input/output layer options
   opt.norm = 'minmax' # if normalization should not be used
@@ -41,8 +41,8 @@ def GetParams():
   # architecture options 
   opt.model='rcan'#'model to use'  
   opt.narch = 0
-  opt.n_resgroups = 3
-  opt.n_resblocks = 10
+  opt.n_resgroups = 4
+  opt.n_resblocks = 4
   opt.n_feats = 96
   opt.reduction = 16
 
@@ -151,12 +151,12 @@ def EvaluateModel(opt):
 
         
 
-            wf = (wf * 65000/np.amax(wf)).astype('uint16')
+            wf = (wf * 65000).astype('uint16')
             svPath = opt.out + '/' + filename +'_wf.tif'
             tifffile.imsave(svPath,wf,append=True)
 
 
-            sr_frame = (sr_frame/np.amax(sr_frame) * 65000).astype('uint16')
+            sr_frame = (sr_frame * 65000).astype('uint16')
             svPath = opt.out + '/' + filename +'_sr.tif'
             tifffile.imsave(svPath,sr_frame,append=True)
 
