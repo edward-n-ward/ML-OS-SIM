@@ -15,7 +15,7 @@ search_range=0.6;
 
 
 
-path = 'D:\User\Edward\OneDrive - University Of Cambridge\OS-SIM test data\01-10-2021\cell11.tif';
+path = 'D:\User\Edward\OneDrive - University Of Cambridge\OS-SIM test data\01-10-2021\cell12.tif';
 
 info = imfinfo(path);
 numberOfPages = floor(length(info)/p_num);
@@ -31,8 +31,15 @@ for k = 1 : numberOfPages
     end
     try
         final = fourierOSSIM(noiseimage,path);
+        disp(strcat('Done frame: ',num2str(k)));
     catch
         disp(strcat('Failed to process frame number: ',num2str(k)));
+        
+%         svPath = path(1:end-4);
+%         imwrite(zeros(size(noiseimage(:,:,1,1))),strcat(svPath,'_wf.tif'),'writemode','append');
+%         imwrite(zeros(size(noiseimage(:,:,1,1))),strcat(svPath,'_better.tif'),'writemode','append');
+%         imwrite(zeros(size(noiseimage(:,:,1,1))),strcat(svPath,'_final.tif'),'writemode','append');
+%         imwrite(zeros(size(noiseimage(:,:,1,1))),strcat(svPath,'_filtered.tif'),'writemode','append');
     end
 end
 
@@ -51,11 +58,14 @@ show_initial_result_flag=0;
 show_corrected_result_flag=0;
 search_range=0.6;
 
-
-PSF_edge = fspecial('gaussian',5,40);
-
 [xsize, ysize] = size(noiseimage(:,:,1));
 [Y,X]=meshgrid(1:ysize,1:xsize);
+
+PSF_edge = fspecial('gaussian',5,40);
+PSF_mask = 1-fspecial('gaussian',xsize,2);
+PSF_mask = PSF_mask-min(PSF_mask(:)); PSF_mask = PSF_mask./max(PSF_mask(:)); 
+
+
 
 xc=floor(xsize/2+1);% the x-coordinate of the center
 yc=floor(ysize/2+1);% the y-coordinate of the center
@@ -163,6 +173,19 @@ corr1 = tan((auto_phase(2)-auto_phase(3))/2);
 corr2 = tan((auto_phase(3)-auto_phase(1))/2);
 corr = B3/corr1 - B2/corr2;
 better = (B1.^2 + corr.^2).^0.5;
+
+filter = fftshift(fft2(better));
+filter = filter.*exact_shift(PSF_mask,[-precise_shift(1,2,1),-precise_shift(1,2,2)],1);
+filter = filter.*exact_shift(PSF_mask,[-2*precise_shift(1,2,1),-2*precise_shift(1,2,2)],1);
+
+filter = filter.*exact_shift(PSF_mask,[precise_shift(1,2,1),precise_shift(1,2,2)],1);
+filter = filter.*exact_shift(PSF_mask,[2*precise_shift(1,2,1),2*precise_shift(1,2,2)],1);
+
+filter = abs(ifft2(fftshift(filter)));
+filter = uint16(65000*filter);
+
+
+
 better = better-min(better(:)); better = uint16(65000*better);
 
 widefield = widefield-min(widefield(:)); widefield = uint16(65000*widefield);
@@ -171,6 +194,7 @@ svPath = path(1:end-4);
 imwrite(widefield,strcat(svPath,'_wf.tif'),'writemode','append');
 imwrite(better,strcat(svPath,'_better.tif'),'writemode','append');
 imwrite(final,strcat(svPath,'_final.tif'),'writemode','append');
+imwrite(filter,strcat(svPath,'_filtered.tif'),'writemode','append');
 
 
 end
