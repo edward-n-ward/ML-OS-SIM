@@ -17,7 +17,6 @@ from skimage.exposure import match_histograms
 import tifffile
 from models import *
 
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
@@ -26,13 +25,13 @@ def GetParams():
   opt = argparse.Namespace()
 
   # data
-  opt.weights = 'D:/User/Edward/Documents/prelim128.pth' # model to retrain from
+  opt.weights = 'C:/Users/ew535/Documents/GitHub/ML-OS-SIM/Models/ML-SIM copy apo/prelim160.pth' # model to retrain from
   opt.imageSize = 512
-  opt.root = 'D:/User/Edward/OneDrive - University Of Cambridge/OS-SIM test data'
-  opt.out = 'D:/ML-SIM/OS-SIM/ML-SIM reconstructions/HPC 27-06-2021 apo'
+  opt.root = 'Z:/Users/ew535/20220427_Chiara/to process'
+  opt.out = 'Z:/Users/ew535/20220427_Chiara/ML-output/modal2'
 
   # input/output layer options
-  opt.norm = 'minmax' # if normalization should not be used
+  opt.norm = 'modal' # if normalization should not be used
   opt.task = 'simin_gtout'
   opt.scale = 1
   opt.nch_in = 3
@@ -41,8 +40,8 @@ def GetParams():
   # architecture options 
   opt.model='rcan'#'model to use'  
   opt.narch = 0
-  opt.n_resgroups = 4
-  opt.n_resblocks = 4
+  opt.n_resgroups = 3
+  opt.n_resblocks = 10
   opt.n_feats = 96
   opt.reduction = 16
 
@@ -53,7 +52,19 @@ def GetParams():
     
   return opt
 
+def threshold_and_norm(arr):
 
+    #arr = arr-np.amin(arr)
+    #arr = (arr/np.amax(arr))
+    hist, bins = np.histogram(arr,255)
+    ind = np.where(hist==np.amax(hist))
+    mini = bins[ind[0][0]]
+    maxi = bins[ind[0][0]+1]
+    sub = 0.8*((maxi+mini)/2)
+    arr = arr - sub
+    arr[arr<0]=0
+    arr = (arr/np.amax(arr))
+    return arr
 
 def remove_dataparallel_wrapper(state_dict):
 	r"""Converts a DataParallel model to a normal one by removing the "module."
@@ -123,11 +134,14 @@ def EvaluateModel(opt):
             stackSubset = images[stack_idx*opt.nch_in:(stack_idx+1)*opt.nch_in]
             #stackSubset = stackSubset-np.amin(stackSubset)
             stackSubset = stackSubset/np.amax(stackSubset)
-            for f in range(1,opt.nch_in):
-                stackSubset[f,:,:] =  stackSubset[f,:,:]-np.amin(stackSubset[f,:,:])
-                stackSubset[f,:,:] = stackSubset[f,:,:]/np.amax(stackSubset[f,:,:])
+            if opt.norm == 'modal':
+                for f in range(1,opt.nch_in):
+                    stackSubset[f,:,:] =  threshold_and_norm(stackSubset[f,:,:])
+            else:
+                for f in range(1,opt.nch_in):
+                    stackSubset[f,:,:] =  stackSubset[f,:,:]-np.amin(stackSubset[f,:,:])
+                    stackSubset[f,:,:] = stackSubset[f,:,:]/np.amax(stackSubset[f,:,:])  
             wf = np.mean(stackSubset,0)
-
             sub_tensor = torch.from_numpy(stackSubset)
             sub_tensor = sub_tensor.unsqueeze(0)
             sub_tensor = sub_tensor.type(torch.FloatTensor)
