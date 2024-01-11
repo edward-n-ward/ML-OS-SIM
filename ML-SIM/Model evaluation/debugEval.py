@@ -16,6 +16,7 @@ from skimage import io
 from skimage.exposure import match_histograms
 import tifffile
 from models import *
+import time
 
 from tqdm import tqdm
 
@@ -25,10 +26,10 @@ def GetParams():
   opt = argparse.Namespace()
 
   # data
-  opt.weights = 'C:/Users/ew535/Documents/GitHub/ML-OS-SIM/ML-SIM/Models/ML-SIM copy apo/prelim160.pth' # model to retrain from
+  opt.weights = '' # model to evaluate
   opt.imageSize = 512
-  opt.root = 'C:/Users/ew535/University of Cambridge/User_CEB_LAG_MNG - ML for OS-SIM - ML for OS-SIM/Reconstruction error analysis/noise tests/dump'
-  opt.out = 'C:/Users/ew535/University of Cambridge/User_CEB_LAG_MNG - ML for OS-SIM - ML for OS-SIM/Reconstruction error analysis/noise tests/dump/CNN' # output directory
+  opt.root = '' # path to images to reconstruct
+  opt.out = '' # path to save results
 
   # input/output layer options
   opt.norm = 'modal' # if normalization should not be used
@@ -145,7 +146,6 @@ def EvaluateModel(opt):
 
         for stack_idx in tqdm(range(nImgs),desc=description):
             stackSubset = images[stack_idx*opt.nch_in:(stack_idx+1)*opt.nch_in]
-            #stackSubset = stackSubset-np.amin(stackSubset)
             stackSubset = stackSubset/np.amax(stackSubset)
             if opt.norm == 'total':
                 stackSubset =  stackSubset - arr_min
@@ -158,8 +158,10 @@ def EvaluateModel(opt):
             sub_tensor = sub_tensor.unsqueeze(0)
             sub_tensor = sub_tensor.type(torch.FloatTensor)
             
-            
+            # time the network
+
             with torch.no_grad():
+
                 if opt.cpu:
                     sr = net(sub_tensor)
                 else:
@@ -169,6 +171,7 @@ def EvaluateModel(opt):
                 sr = torch.clamp(sr[0],0,1)
                 sr_frame = sr.numpy()
                 sr_frame = np.squeeze(sr_frame)                               
+            end = time.time()
 
             #if stack_idx == 0:
             #    reference = np.copy(sr_frame)
@@ -180,7 +183,6 @@ def EvaluateModel(opt):
             wf = (wf * arr_max).astype('uint16')
             svPath = opt.out + '/' + filename +'_wf.tif'
             tifffile.imsave(svPath,wf,append=True)
-
 
             sr_frame = (sr_frame * arr_max).astype('uint16')
             svPath = opt.out + '/' + filename +'_sr.tif'
