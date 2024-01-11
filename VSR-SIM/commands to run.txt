@@ -1,0 +1,6 @@
+﻿
+cmd to run inference
+python "path/to/inference_options.py" -opt "path/to/.yml"
+
+cmd to run training
+python "path/to/train.py" -opt "path/to/.yml"
