@@ -229,13 +229,7 @@ class RCAN(nn.Module):
             x0 = self.head02(self.head0(x[:,0:0+1,:,:]))
             x1 = self.head12(self.head1(x[:,1:1+1,:,:]))
             x2 = self.head22(self.head2(x[:,2:2+1,:,:]))
-           # x3 = self.head32(self.head3(x[:,3:3+1,:,:]))
-           # x4 = self.head42(self.head4(x[:,4:4+1,:,:]))
-           # x5 = self.head52(self.head5(x[:,5:5+1,:,:]))
-           # x6 = self.head62(self.head6(x[:,6:6+1,:,:]))
-           # x7 = self.head72(self.head7(x[:,7:7+1,:,:]))
-           # x8 = self.head82(self.head8(x[:,8:8+1,:,:]))
-           # x = torch.cat((x0,x1,x2,x3,x4,x5,x6,x7,x8), 1)
+
             x = torch.cat((x0,x1,x2), 1)
             x = self.combineHead(x)
 

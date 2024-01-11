@@ -29,7 +29,7 @@ import tifffile
 
 ## Set directory
 
-path = "Z:/Users/ML for OS-SIM/Live_OS_SIM_Code/live OS-SIM" # Enter directory here
+path = "" # Enter directory here
 os.chdir(path)
 
 ## Set stage parameters
@@ -156,7 +156,7 @@ class ML_App:
         
         # Choose save folder button
         def select_folder():
-            string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') # Enter starting directory here
+            string = "" + datetime.datetime.now().strftime('%Y_%m_%d') # Enter starting directory here
             self.foldername = fd.askdirectory(title='Choose a folder', initialdir=string)
             showinfo(title='Selected Folder:', message=self.foldername)
             if self.foldername:
@@ -1424,7 +1424,7 @@ class ML_App:
                 'No. of steps': int(self.zStepsVal.get()) }
             meta_data.update(extra_meta_data)
 
-        string2 = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '\\' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'metadata.txt')
+        string2 = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '\\' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'metadata.txt')
 
         with open(string2,'w') as file:
             file.write(json.dumps(meta_data, indent=4))
@@ -1435,7 +1435,7 @@ class ML_App:
         blank = np.zeros((512, 512))
         blank = blank.astype('uint8')
         blank_img = ImageTk.PhotoImage(image=Image.fromarray(blank))  
-        string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
+        string = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
         append_var = False
         while True: 
             self.rchild_min.value = self.rMin.get() # Reconstruction range values
@@ -1479,8 +1479,8 @@ class ML_App:
                         
                     elif self.save_signal.value == False: # Create new strings to name the next metadata and timing data files, reset variable
                         # Enter relevant directories to save in:
-                        string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
-                        timing_string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'timing.txt')
+                        string = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
+                        timing_string = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'timing.txt')
                         append_var = False
                         save_metadata_var = True
 
@@ -1523,8 +1523,8 @@ class ML_App:
 
                     elif self.save_signal.value == False:
                         # Enter relevant directories to save in:
-                        string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
-                        timing_string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'timing.txt')
+                        string = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'reconstruction.tif')
+                        timing_string = "" + datetime.datetime.now().strftime('%Y_%m_%d') + '/' + 'test' + datetime.datetime.now().strftime('_%Y_%m_%d_T%H.%M.%S'+'timing.txt')
                         append_var = False
                         save_metadata_var = True
 
