@@ -35,10 +35,10 @@ def GetParams():
   opt.imageSize = '512' # the low resolution image size
   opt.weights = '' # model to retrain from
   opt.basedir = '' # path to prepend to all others paths: root, output, weights
-  opt.root ='E:/datasets/OS-SIM/' # dataset to train
-  opt.server = 'E:/datasets/OS-SIM/' # whether to use server root preset
-  opt.local = 'E:/datasets/OS-SIM/' # whether to use local root preset: C:/phd-data/datasets/
-  opt.out = 'C:/Users/ew535/Documents/GitHub/ML-OS-SIM/ML-SIM/Models/ML-SIM/' # folder to output model training results
+  opt.root ='' # dataset to train
+  opt.server = '' # whether to use server root preset
+  opt.local = '' # whether to use local root preset
+  opt.out = '' # folder to output model training results
 
   # computation 
   opt.workers  = 1 # number of data loading workers

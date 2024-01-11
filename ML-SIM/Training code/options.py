@@ -20,10 +20,10 @@ parser.add_argument('--dataset', type=str, default='fouriersim', help='dataset t
 parser.add_argument('--imageSize', type=int, default=512, help='the low resolution image size')
 parser.add_argument('--weights', type=str, default='', help='model to retrain from')
 parser.add_argument('--basedir', type=str, default='', help='path to prepend to all others paths: root, output, weights')
-parser.add_argument('--root', type=str, default='/content/gdrive/MyDrive/training data/generated 20-03-2021', help='dataset to train')
-parser.add_argument('--server', dest='root', action='store_const', const='/content/gdrive/MyDrive/training data/generated 20-03-2021', help='whether to use server root preset')
-parser.add_argument('--local', dest='root', action='store_const', const='/content/gdrive/MyDrive/training data/generated 20-03-2021', help='whether to use local root preset: C:/phd-data/datasets/')
-parser.add_argument('--out', type=str, default='/content/gdrive/MyDrive/training data/generated 20-03-2021/results', help='folder to output model training results')
+parser.add_argument('--root', type=str, default='', help='dataset to train')
+parser.add_argument('--server', dest='root', action='store_const', const='', help='whether to use server root preset')
+parser.add_argument('--local', dest='root', action='store_const', const='', help='whether to use local root preset: C:/phd-data/datasets/')
+parser.add_argument('--out', type=str, default='', help='folder to output model training results')
 
 # computation 
 parser.add_argument('--workers', type=int, default=1, help='number of data loading workers')
