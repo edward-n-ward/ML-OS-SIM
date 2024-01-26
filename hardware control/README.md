@@ -1,4 +1,4 @@
 # ML-SIM
 
-Functions fo live reconstruction and hardware control
+Functions for live reconstruction and hardware control
 
