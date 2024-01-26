@@ -624,7 +624,7 @@ class liveOS_SIM:
         self.single_colour = "NA"
         self.colourROI = np.array([4, 5, 710, 0, 1422, 8]) # Will need to be calibrated for your system
         
-        string = "Z:\\Users\\rm994\\OS Images\\" + datetime.datetime.now().strftime('%Y_%m_%d') # changed 21.04.2023
+        string = "" + datetime.datetime.now().strftime('%Y_%m_%d') # changed 21.04.2023
         if not os.path.exists(string):
             os.makedirs(string)            
         self.saveDir = string
